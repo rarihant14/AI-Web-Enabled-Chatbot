@@ -1,11 +1,11 @@
 # 🛒 AI Web-Enabled Shopping Assistant  
 ### (Reasoning Model + Real-Time Web Search)
+      
+         An intelligent AI shopping chatbot powered by:
 
-An intelligent AI shopping chatbot powered by:
-
-- 🧠 **Groq Reasoning LLM (Qwen 32B)**
-- 🌐 **Tavily Real-Time Web Search**
-- 🚀 **Flask Web Framework**
+         - 🧠 **Groq Reasoning LLM (Qwen 32B)**
+-       🌐 **Tavily Real-Time Web Search**
+-          🚀 **Flask Web Framework**
 
 This assistant doesn’t just generate text —  
 it searches the web, filters trusted sources, builds structured context, and reasons before answering.
@@ -58,4 +58,5 @@ it searches the web, filters trusted sources, builds structured context, and rea
 
 ```bash
 pip install -r requirements.txt
+
 
