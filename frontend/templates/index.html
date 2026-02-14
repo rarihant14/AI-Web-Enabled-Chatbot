@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Groq Web Chatbot</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+
+  <div class="app-container">
+    <div class="chat-header">
+      <div class="title">
+        <h2>🤖 Web-Based Chatbot</h2>
+        <p>Trusted Sources Only: Amazon • Flipkart </p>
+      </div>
+
+      <div class="controls">
+        <button class="danger" onclick="clearMemory()">Clear Memory</button>
+      </div>
+    </div>
+
+    <div class="chat-area" id="chatBox">
+      <div class="msg bot-msg">
+        <div class="avatar bot-avatar">🤖</div>
+        <div class="content">
+          <div class="bubble">
+            Hi 👋 Ask me anything!  
+            Try: <br>
+             ✅ “Best phone under 20k” <br>
+          </div>
+          <div class="meta">just now</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="chat-input-area">
+      <input type="text" id="userInput" placeholder="Type your message..." />
+      <button onclick="sendMessage()">Send</button>
+    </div>
+  </div>
+
+  <script>
+    const chatBox = document.getElementById("chatBox");
+    const userInput = document.getElementById("userInput");
+
+    function getTimeStamp() {
+      const now = new Date();
+      let h = now.getHours();
+      let m = now.getMinutes();
+      const ampm = h >= 12 ? "PM" : "AM";
+      h = h % 12;
+      h = h ? h : 12;
+      m = m < 10 ? "0" + m : m;
+      return `${h}:${m} ${ampm}`;
+    }
+
+    // ✅ Convert Markdown links to clickable HTML
+    function convertMarkdownLinks(text) {
+      return text.replace(
+        /\[([^\]]+)\]\(([^)]+)\)/g,
+        '<a href="$2" target="_blank" class="source-link">$1</a>'
+      );
+    }
+
+    function addMessage(text, sender="bot", sources=[], topProducts=null) {
+      const msgDiv = document.createElement("div");
+      msgDiv.classList.add("msg");
+
+      const time = getTimeStamp();
+
+      if(sender === "user") {
+        msgDiv.classList.add("user-msg");
+        msgDiv.innerHTML = `
+          <div class="content">
+            <div class="bubble">${text}</div>
+            <div class="meta">${time}</div>
+          </div>
+          <div class="avatar user-avatar">🧑</div>
+        `;
+      } else {
+        msgDiv.classList.add("bot-msg");
+
+        let contentHTML = "";
+
+        // 🔥 Render product cards if present
+        if (topProducts && topProducts.length > 0) {
+
+          topProducts.forEach((p, index) => {
+            contentHTML += `
+              <div class="product-card">
+                <div class="product-title">${index+1}. ${p.title}</div>
+                <div class="product-meta">
+                  ⭐ ${p.rating || "N/A"} &nbsp; | &nbsp;
+                  📝 ${p.review_count || "0"} reviews
+                </div>
+                <a href="${p.url}" target="_blank" class="product-btn">
+                  🔗 View Product
+                </a>
+              </div>
+            `;
+          });
+
+        } else {
+          contentHTML = `<div class="bubble">${convertMarkdownLinks(text)}</div>`;
+        }
+
+        // Trusted sources below bubble
+        let sourcesHTML = "";
+        if (sources && sources.length > 0) {
+          sourcesHTML += `<div class="sources"><b>🔗 Trusted Sources:</b><br>`;
+          sources.forEach((s) => {
+            sourcesHTML += `
+              <a href="${s.url}" target="_blank" class="source-link">
+                • ${s.title}
+              </a><br>
+            `;
+          });
+          sourcesHTML += `</div>`;
+        }
+
+        msgDiv.innerHTML = `
+          <div class="avatar bot-avatar">🤖</div>
+          <div class="content">
+            ${contentHTML}
+            ${sourcesHTML}
+            <div class="meta">${time}</div>
+          </div>
+        `;
+      }
+
+      chatBox.appendChild(msgDiv);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    function addTypingIndicator() {
+      const typingId = "typing_" + Date.now();
+
+      const typingDiv = document.createElement("div");
+      typingDiv.classList.add("msg", "bot-msg");
+      typingDiv.setAttribute("id", typingId);
+
+      typingDiv.innerHTML = `
+        <div class="avatar bot-avatar">🤖</div>
+        <div class="content">
+          <div class="bubble typing-bubble">
+            <span class="dot"></span>
+            <span class="dot"></span>
+            <span class="dot"></span>
+          </div>
+          <div class="meta">typing...</div>
+        </div>
+      `;
+
+      chatBox.appendChild(typingDiv);
+      chatBox.scrollTop = chatBox.scrollHeight;
+
+      return typingId;
+    }
+
+    async function sendMessage() {
+      const text = userInput.value.trim();
+      if(!text) return;
+
+      addMessage(text, "user");
+      userInput.value = "";
+
+      const typingId = addTypingIndicator();
+
+      try {
+        const formData = new FormData();
+        formData.append("user_query", text);
+
+        const response = await fetch("/chat", {
+          method: "POST",
+          body: formData
+        });
+
+        const data = await response.json();
+        document.getElementById(typingId).remove();
+
+        addMessage(
+          data.reply,
+          "bot",
+          data.sources || [],
+          data.top_products || null
+        );
+
+      } catch(err) {
+        document.getElementById(typingId).remove();
+        addMessage("Error happened 💀 Check server logs.", "bot", []);
+      }
+    }
+
+    async function clearMemory() {
+      const response = await fetch("/clear_memory", { method: "POST" });
+      const data = await response.json();
+      addMessage(data.reply, "bot", []);
+    }
+
+    userInput.addEventListener("keypress", function(e) {
+      if(e.key === "Enter") sendMessage();
+    });
+  </script>
+
+</body>
+</html>
